@@ -1,8 +1,8 @@
 package com.blog.search.service;
 
 import com.blog.search.dto.KeywordSearchReqDTO;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
+import com.blog.search.dto.KeywordSearchResDTO;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +24,8 @@ public class SearchService {
     @Value("${kakaoSearch}")
     private String host;
 
-    public JSONObject getKeywordSearch(KeywordSearchReqDTO req) {
+    public KeywordSearchResDTO getKeywordSearch(KeywordSearchReqDTO req) {
         String searchUrl = "/v2/search/blog";
-        JSONObject result = new JSONObject();
         try {
             URL url = new URL(host + searchUrl + "?query=" + URLEncoder.encode(req.getQuery(), StandardCharsets.UTF_8) + "&sort=" + req.getSort()
                         + "&page=" + req.getPage() + "&size=" + req.getSize());
@@ -45,14 +44,14 @@ public class SearchService {
 
             br.close();
             con.disconnect();
-            JSONParser parser = new JSONParser();
-            result = (JSONObject) parser.parse(sb.toString());
+
+            JSONObject jsonObject = new JSONObject(sb.toString());
+            return new KeywordSearchResDTO(jsonObject, req.getPage(), req.getSize());
 
         } catch (Exception ex) {
             System.out.println("테스트: " + ex.getMessage());
         }
-
-        return result;
+        return new KeywordSearchResDTO();
     }
 
 }
