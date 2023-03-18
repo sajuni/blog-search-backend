@@ -11,3 +11,9 @@ spring:
       console:
         enabled: true
         path: /h2-console
+
+#HOST
+kakaoSearch: http://dapi.kakao.com
+
+#REST API KEY
+restApiKey: dfc7bd188adc3b82d9794404f9991b35
