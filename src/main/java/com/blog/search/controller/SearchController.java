@@ -23,20 +23,12 @@ public class SearchController{
 
     @GetMapping("/search")
     public ResponseEntity<?> getSearchKeyword(@RequestBody @Valid KeywordSearchReqDTO reqParam) {
-        try {
-            return new ResponseEntity<>(searchService.getKeywordSearch(reqParam), HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>("키워드 검색 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return new ResponseEntity<>(searchService.getKeywordSearch(reqParam), HttpStatus.OK);
     }
 
     @GetMapping("/topten")
     public ResponseEntity<?> getTopTenList() {
-        try {
-            return new ResponseEntity<>(searchService.getTopTenList(), HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>("인기 키워드 목록 조회 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return new ResponseEntity<>(searchService.getTopTenList(), HttpStatus.OK);
     }
 
 }

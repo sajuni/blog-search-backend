@@ -6,18 +6,19 @@ import com.blog.search.dto.TopTenResDTO;
 import com.blog.search.entity.TopTen;
 import com.blog.search.repository.TopTenRepository;
 import lombok.RequiredArgsConstructor;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import javax.persistence.OptimisticLockException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -32,43 +33,69 @@ public class SearchService {
     @Value("${restApiKey}")
     private String restApiKey;
 
-    @Value("${kakaoSearch}")
-    private String host;
+    @Value("${kakaoSearchHost}")
+    private String kakaoHost;
+
+    @Value("${naverSearchHost}")
+    private String naverHost;
+
+    @Value("${XNaverClientId}")
+    private String naverClientId;
+
+    @Value("${XNaverClientSecret}")
+    private String naverClientSecret;
+
+    @Value("${retryMax}")
+    private int retryMax;
 
     private final TopTenRepository topTenRepository;
 
+    private final RestTemplate restTemplate;
+
     @Transactional
     public KeywordSearchResDTO getKeywordSearch(KeywordSearchReqDTO req) {
-        String searchUrl = "/v2/search/blog";
         try {
-            URL url = new URL(host + searchUrl + "?query=" + URLEncoder.encode(req.getQuery(), StandardCharsets.UTF_8) + "&sort=" + req.getSort()
-                    + "&page=" + req.getPage() + "&size=" + req.getSize());
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            con.setRequestMethod("GET");
-            con.setRequestProperty("Authorization", "KakaoAK " + restApiKey);
+            String searchUrl = "/v2/search/blog";
+//            String encodedQuery = stringEncoder(req.getQuery());
+            String url = kakaoHost + searchUrl + "?query=" + req.getQuery() + "&sort=" + req.getSort()
+                    + "&page=" + req.getPage() + "&size=" + req.getSize();
 
-            BufferedReader br;
-            br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "KakaoAK " + restApiKey);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line);
-            }
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            JSONObject jsonObject = new JSONObject(response.getBody());
 
-            br.close();
-            con.disconnect();
-
-            JSONObject jsonObject = new JSONObject(sb.toString());
             increaseViewCountByOne(req.getQuery());
-            return new KeywordSearchResDTO(jsonObject, req);
 
-        } catch (MalformedURLException ex) {
-            throw new RuntimeException("URL 생성 중 오류가 발생했습니다." + ex);
-        } catch (IOException ex) {
-            throw new RuntimeException("API 요청 중 오류가 발생했습니다." + ex);
-        } catch (Exception ex) {
-            throw new RuntimeException("키워드 검생 중 오류가 발생했습니다." + ex);
+            return new KeywordSearchResDTO(jsonObject, req, "kakao");
+        } catch (RestClientException e) {
+            return getNaverApiSearch(req); // 실패 시 naverapi 호출
+        } catch (JSONException e) {
+            throw new JSONException("제이슨 파싱 중 에러가 발생했습니다.");
+        }
+    }
+
+    public KeywordSearchResDTO getNaverApiSearch(KeywordSearchReqDTO req) {
+        try {
+            String searchUrl = "/v1/search/blog.json";
+            String encodedQuery = stringEncoder(req.getQuery()); // 네이버는 검색 시 한글 인코딩
+            String sort = req.getSort().equals("accuracy") ? "sim" : "date";
+            String url = naverHost + searchUrl + "?query=" + encodedQuery + "&sort=" + sort
+                    + "&start=" + req.getPage() + "&display=" + req.getSize();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Naver-Client-Id", naverClientId);
+            headers.set("X-Naver-Client-Secret", naverClientSecret);
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+            JSONObject jsonObject = new JSONObject(response.getBody());
+            return new KeywordSearchResDTO(jsonObject, req, "naver");
+        } catch (RestClientException e) {
+            throw new RuntimeException("Api 요청 중 에러가 발생했습니다.");
         }
     }
 
@@ -78,7 +105,7 @@ public class SearchService {
 
         if (topTenObj.isPresent()) {
             int retryCount = 0;
-            while (retryCount < 10) {
+            while (retryCount < retryMax) {
                 TopTen topTen = topTenObj.get();
                 try {
                     topTen.setViewCount(topTen.getViewCount() + 1);
@@ -89,12 +116,11 @@ public class SearchService {
                     TopTen currentTopTen = topTenObj.get();
                     if (currentTopTen.getVersion() > topTen.getVersion()) {
                         retryCount++;
-                        System.out.println("리트라이 실행 중");
                         LockSupport.parkNanos(TimeUnit.MICROSECONDS.toNanos(200));
                     }
                 }
             }
-            if (retryCount == 10) {
+            if (retryCount == retryMax) {
                 throw new RuntimeException("동시성 이슈 발생, 재시도 횟수 초과");
             }
         } else {
@@ -105,5 +131,9 @@ public class SearchService {
     public TopTenResDTO getTopTenList() {
         List<TopTen> topTen = topTenRepository.findTop10ByOrderByViewCountDesc();
         return new TopTenResDTO(topTen);
+    }
+
+    public String stringEncoder(String param) {
+        return URLEncoder.encode(param, StandardCharsets.UTF_8);
     }
 }

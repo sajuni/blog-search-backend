@@ -8,7 +8,7 @@ import org.json.JSONObject;
 @Setter
 @Getter
 @NoArgsConstructor
-public class SearchItemDTO {
+public class KakaoSearchItemDTO {
     private String blogname;
     private String datetime;
     private String thumbnail;
@@ -16,7 +16,7 @@ public class SearchItemDTO {
     private String title;
     private String url;
 
-    public SearchItemDTO(JSONObject jsonObject) {
+    public KakaoSearchItemDTO(JSONObject jsonObject) {
         blogname = jsonObject.getString("blogname");
         datetime = jsonObject.getString("datetime");
         thumbnail = jsonObject.getString("thumbnail");
