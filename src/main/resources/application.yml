@@ -15,9 +15,6 @@ spring:
       hibernate:
         format_sql: true
         show_sql: false
-  redis:
-    host: localhost
-    port: 6379
 
 #HOST
 kakaoSearch: http://dapi.kakao.com
