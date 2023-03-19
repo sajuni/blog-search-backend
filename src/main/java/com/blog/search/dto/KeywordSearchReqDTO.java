@@ -14,10 +14,13 @@ import javax.validation.constraints.NotBlank;
 public class KeywordSearchReqDTO {
     @NotBlank(message = "query parameter required")
     private String query;
+
     private String sort;
+
     @Min(value = 1, message = "size is less than min")
     @Max(value = 50, message = "page is more than max")
     private Integer page;
+
     @Min(value = 1, message = "size is less than min")
     @Max(value = 50, message = "page is more than max")
     private Integer size;

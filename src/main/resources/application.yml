@@ -1,16 +1,23 @@
 spring:
-    datasource:
-      url: jdbc:h2:mem:blogsearch
-      driverClassName: org.h2.Driver
-      username: sa
-      password:
-    jpa: database-platform=org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/blogSearch
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
     hibernate:
       ddl-auto: none
-    h2:
-      console:
-        enabled: true
-        path: /h2-console
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: false
+  redis:
+    host: localhost
+    port: 6379
 
 #HOST
 kakaoSearch: http://dapi.kakao.com

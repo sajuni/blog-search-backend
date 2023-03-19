@@ -18,13 +18,17 @@ public class KeywordSearchResDTO {
     private Integer size;
     private Integer total_elements;
     private Boolean is_end;
+    private String sort;
+    private String searchKeyword;
 
-    public KeywordSearchResDTO(JSONObject jsonObject, int page, int size) {
+    public KeywordSearchResDTO(JSONObject jsonObject, KeywordSearchReqDTO req) {
         JSONObject meta = jsonObject.getJSONObject("meta");
         this.total_elements = meta.getInt("total_count");
         this.is_end = meta.getBoolean("is_end");
-        this.page = page;
-        this.size = size;
+        this.page = req.getPage();
+        this.size = req.getSize();
+        this.sort = req.getSort();
+        this.searchKeyword = req.getQuery();
 
         JSONArray jsonArray = jsonObject.getJSONArray("documents");
         for(int i = 0; i < jsonArray.length(); i++) {
