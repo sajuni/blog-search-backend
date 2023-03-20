@@ -92,7 +92,7 @@ class SearchServiceTest {
     @Test
     @DisplayName("여러 쓰레드 동시 요청 테스트")
     public void 동시에_500개_요청() throws InterruptedException {
-        int threadCount = 500;
+        int threadCount = 700;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         CountDownLatch countDownLatch = new CountDownLatch(threadCount);
         for (int i = 0; i < threadCount; i++) {
@@ -105,5 +105,6 @@ class SearchServiceTest {
             });
         }
         countDownLatch.await();
+
     }
 }

@@ -18,10 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.persistence.EntityManager;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +41,8 @@ public class SearchService {
 
     @Value("${XNaverClientSecret}")
     private String naverClientSecret;
+
+    private final EntityManager entityManager;
 
 //    낙관적 락 로직
 //    @Value("${retryMax}")
@@ -97,18 +99,17 @@ public class SearchService {
         }
     }
 
-
     // 비관적 락 로직(정확성 위주)
     @Transactional
     public synchronized void increaseViewCountByOne(String searchKeyword) {
-        Optional<TopTen> topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
-
-        if (topTenObj.isPresent()) {
-            TopTen topTen = topTenObj.get();
+        try {
+            TopTen topTen = topTenRepository.findBySearchKeyword(searchKeyword)
+                    .orElseGet(() -> new TopTen(searchKeyword));
             topTen.setViewCount(topTen.getViewCount() + 1);
-            topTenRepository.save(topTen);
-        } else {
-            topTenRepository.save(new TopTen(searchKeyword));
+            entityManager.merge(topTen);
+        } catch (Exception e) {
+            // 예외 처리
+            throw new RuntimeException("Failed to increase view count for search keyword: " + searchKeyword);
         }
     }
 
