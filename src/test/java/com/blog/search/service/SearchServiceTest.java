@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -83,5 +86,24 @@ class SearchServiceTest {
         assertNotNull(topTenList);
         assertEquals(10, topTenList.getTopTenList().size());
         assertEquals(topKeyword, topTenList.getTopTenList().get(0).getSearchKeyword());
+    }
+
+
+    @Test
+    @DisplayName("여러 쓰레드 동시 요청 테스트")
+    public void 동시에_500개_요청() throws InterruptedException {
+        int threadCount = 500;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch countDownLatch = new CountDownLatch(threadCount);
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    searchService.increaseViewCountByOne("테스트중2");
+                } finally {
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        countDownLatch.await();
     }
 }

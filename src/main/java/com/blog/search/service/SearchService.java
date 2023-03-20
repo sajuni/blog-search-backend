@@ -18,13 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.persistence.OptimisticLockException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -45,8 +42,9 @@ public class SearchService {
     @Value("${XNaverClientSecret}")
     private String naverClientSecret;
 
-    @Value("${retryMax}")
-    private int retryMax;
+//    낙관적 락 로직
+//    @Value("${retryMax}")
+//    private int retryMax;
 
     private final TopTenRepository topTenRepository;
 
@@ -99,34 +97,50 @@ public class SearchService {
         }
     }
 
+
+    // 비관적 락 로직(정확성 위주)
     @Transactional
-    public void increaseViewCountByOne(String searchKeyword) {
+    public synchronized void increaseViewCountByOne(String searchKeyword) {
         Optional<TopTen> topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
 
         if (topTenObj.isPresent()) {
-            int retryCount = 0;
-            while (retryCount < retryMax) {
-                TopTen topTen = topTenObj.get();
-                try {
-                    topTen.setViewCount(topTen.getViewCount() + 1);
-                    topTenRepository.save(topTen);
-                    break;
-                } catch (OptimisticLockException e) {
-                    topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
-                    TopTen currentTopTen = topTenObj.get();
-                    if (currentTopTen.getVersion() > topTen.getVersion()) {
-                        retryCount++;
-                        LockSupport.parkNanos(TimeUnit.MICROSECONDS.toNanos(200));
-                    }
-                }
-            }
-            if (retryCount == retryMax) {
-                throw new RuntimeException("동시성 이슈 발생, 재시도 횟수 초과");
-            }
+            TopTen topTen = topTenObj.get();
+            topTen.setViewCount(topTen.getViewCount() + 1);
+            topTenRepository.save(topTen);
         } else {
             topTenRepository.save(new TopTen(searchKeyword));
         }
     }
+
+//    낙관적 락 로직(성능 위주)
+//    @Transactional
+//    public synchronized void increaseViewCountByOne(String searchKeyword) {
+//        Optional<TopTen> topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
+//
+//        if (topTenObj.isPresent()) {
+//            int retryCount = 0;
+//            while (retryCount < retryMax) {
+//                TopTen topTen = topTenObj.get();
+//                try {
+//                    topTen.setViewCount(topTen.getViewCount() + 1);
+//                    topTenRepository.save(topTen);
+//                    break;
+//                } catch (OptimisticLockException e) {
+//                    topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
+//                    TopTen currentTopTen = topTenObj.get();
+//                    if (currentTopTen.getVersion() > topTen.getVersion()) {
+//                        retryCount++;
+//                        LockSupport.parkNanos(TimeUnit.MICROSECONDS.toNanos(200));
+//                    }
+//                }
+//            }
+//            if (retryCount == retryMax) {
+//                throw new RuntimeException("동시성 이슈 발생, 재시도 횟수 초과");
+//            }
+//        } else {
+//            topTenRepository.save(new TopTen(searchKeyword));
+//        }
+//    }
 
     public TopTenResDTO getTopTenList() {
         List<TopTen> topTen = topTenRepository.findTop10ByOrderByViewCountDesc();
