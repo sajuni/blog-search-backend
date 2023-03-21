@@ -19,10 +19,6 @@ public class TopTen {
     @Column
     private Long viewCount;
 
-//    낙관적 락 로직
-//    @Version
-//    private Long version;
-
     public TopTen(String keyword) {
         this.searchKeyword = keyword;
         this.viewCount = 1L;
