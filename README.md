@@ -6,4 +6,4 @@
 
 # jar 파일 다운로드
 
-### [빌드파일](https://github.com/sajuni/blog-search-backend/blob/master/search-backend-0.0.1-SNAPSHOT.jar)
+### [빌드파일](https://github.com/sajuni/blog-search-backend/raw/master/search-backend-0.0.1-SNAPSHOT.jar)
