@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,9 +20,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.persistence.EntityManager;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -42,21 +42,16 @@ public class SearchService {
     @Value("${XNaverClientSecret}")
     private String naverClientSecret;
 
-    private final EntityManager entityManager;
-
-//    낙관적 락 로직
-//    @Value("${retryMax}")
-//    private int retryMax;
-
     private final TopTenRepository topTenRepository;
 
     private final RestTemplate restTemplate;
+
+    private final EntityManager entityManager;
 
     @Transactional
     public KeywordSearchResDTO getKeywordSearch(KeywordSearchReqDTO req) {
         try {
             String searchUrl = "/v2/search/blog";
-//            String encodedQuery = stringEncoder(req.getQuery());
             String url = kakaoHost + searchUrl + "?query=" + req.getQuery() + "&sort=" + req.getSort()
                     + "&page=" + req.getPage() + "&size=" + req.getSize();
 
@@ -80,19 +75,18 @@ public class SearchService {
     public KeywordSearchResDTO getNaverApiSearch(KeywordSearchReqDTO req) {
         try {
             String searchUrl = "/v1/search/blog.json";
-            String encodedQuery = stringEncoder(req.getQuery()); // 네이버는 검색 시 한글 인코딩
             String sort = req.getSort().equals("accuracy") ? "sim" : "date";
-            String url = naverHost + searchUrl + "?query=" + encodedQuery + "&sort=" + sort
+            String url = naverHost + searchUrl + "?query=" + req.getQuery() + "&sort=" + sort
                     + "&start=" + req.getPage() + "&display=" + req.getSize();
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Naver-Client-Id", naverClientId);
             headers.set("X-Naver-Client-Secret", naverClientSecret);
-
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             JSONObject jsonObject = new JSONObject(response.getBody());
+
             return new KeywordSearchResDTO(jsonObject, req, "naver");
         } catch (RestClientException e) {
             throw new RuntimeException("Api 요청 중 에러가 발생했습니다.");
@@ -103,52 +97,28 @@ public class SearchService {
     @Transactional
     public synchronized void increaseViewCountByOne(String searchKeyword) {
         try {
-            TopTen topTen = topTenRepository.findBySearchKeyword(searchKeyword)
-                    .orElseGet(() -> new TopTen(searchKeyword));
-            topTen.setViewCount(topTen.getViewCount() + 1);
-            entityManager.merge(topTen);
-        } catch (Exception e) {
+            Optional<TopTen> topTen = topTenRepository.findBySearchKeyword(searchKeyword);
+            topTen.ifPresentOrElse(
+                    // 조회 수 증가
+                    topTenObj -> {
+                        topTenObj.setViewCount(topTenObj.getViewCount() + 1);
+                        topTenRepository.save(topTenObj);
+                    },
+                    // 데이터 추가
+                    () -> {
+                        topTenRepository.save(new TopTen(searchKeyword));
+                        entityManager.flush();
+                    }
+            );
+        } catch (DataIntegrityViolationException e) {
             // 예외 처리
-            throw new RuntimeException("Failed to increase view count for search keyword: " + searchKeyword);
+            throw new DataIntegrityViolationException("Failed to increase view count for search keyword: " + searchKeyword);
         }
     }
-
-//    낙관적 락 로직(성능 위주)
-//    @Transactional
-//    public synchronized void increaseViewCountByOne(String searchKeyword) {
-//        Optional<TopTen> topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
-//
-//        if (topTenObj.isPresent()) {
-//            int retryCount = 0;
-//            while (retryCount < retryMax) {
-//                TopTen topTen = topTenObj.get();
-//                try {
-//                    topTen.setViewCount(topTen.getViewCount() + 1);
-//                    topTenRepository.save(topTen);
-//                    break;
-//                } catch (OptimisticLockException e) {
-//                    topTenObj = topTenRepository.findBySearchKeyword(searchKeyword);
-//                    TopTen currentTopTen = topTenObj.get();
-//                    if (currentTopTen.getVersion() > topTen.getVersion()) {
-//                        retryCount++;
-//                        LockSupport.parkNanos(TimeUnit.MICROSECONDS.toNanos(200));
-//                    }
-//                }
-//            }
-//            if (retryCount == retryMax) {
-//                throw new RuntimeException("동시성 이슈 발생, 재시도 횟수 초과");
-//            }
-//        } else {
-//            topTenRepository.save(new TopTen(searchKeyword));
-//        }
-//    }
 
     public TopTenResDTO getTopTenList() {
         List<TopTen> topTen = topTenRepository.findTop10ByOrderByViewCountDesc();
         return new TopTenResDTO(topTen);
     }
 
-    public String stringEncoder(String param) {
-        return URLEncoder.encode(param, StandardCharsets.UTF_8);
-    }
 }

@@ -91,14 +91,18 @@ class SearchServiceTest {
 
     @Test
     @DisplayName("여러 쓰레드 동시 요청 테스트")
-    public void 동시에_500개_요청() throws InterruptedException {
-        int threadCount = 700;
+    public void concurrency_test() throws InterruptedException {
+        // Given
+        int threadCount = 500;
+        String searchKeyword = "강남스타일";
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         CountDownLatch countDownLatch = new CountDownLatch(threadCount);
+
+        // When
         for (int i = 0; i < threadCount; i++) {
             executorService.submit(() -> {
                 try {
-                    searchService.increaseViewCountByOne("테스트중2");
+                    searchService.increaseViewCountByOne(searchKeyword);
                 } finally {
                     countDownLatch.countDown();
                 }
@@ -106,5 +110,8 @@ class SearchServiceTest {
         }
         countDownLatch.await();
 
+        // Then
+        assertNotNull(searchService.getTopTenList());
+        assertEquals(topTenRepository.findBySearchKeyword(searchKeyword).get().getViewCount(), 500);
     }
 }
