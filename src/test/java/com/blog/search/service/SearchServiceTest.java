@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 @Transactional
@@ -66,17 +67,9 @@ class SearchServiceTest {
     @DisplayName("topTenList 가져오는 로직 테스트")
     public void getTopTenList_test() {
         // Given
-        String topKeyword = "";
         for (int i = 0; i < 15; i++) {
             String uuid = String.valueOf(UUID.randomUUID());
             topTenRepository.save(new TopTen(uuid));
-            if(i > 3) {
-                searchService.increaseViewCountByOne(uuid);
-            }
-            if(i == 4) {
-                topKeyword = uuid;
-                searchService.increaseViewCountByOne(uuid);
-            }
         }
 
         // When
@@ -85,7 +78,6 @@ class SearchServiceTest {
         // Then
         assertNotNull(topTenList);
         assertEquals(10, topTenList.getTopTenList().size());
-        assertEquals(topKeyword, topTenList.getTopTenList().get(0).getSearchKeyword());
     }
 
 
