@@ -1,5 +1,7 @@
 # blog-search-backend
 
+h2 DB명 blogSearch를 먼저 생성해 주셔야 합니다.
+
 간단히 테스트해볼 수 있는 화면 단도 개발해 놨습니다.
 
 - https://github.com/sajuni/blog-search-frontend
