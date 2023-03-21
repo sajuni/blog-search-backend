@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,7 +21,7 @@ public class SearchController{
     private final SearchService searchService;
 
     @GetMapping("/search")
-    public ResponseEntity<?> getSearchKeyword(@RequestBody @Valid KeywordSearchReqDTO reqParam) {
+    public ResponseEntity<?> getSearchKeyword(@Valid KeywordSearchReqDTO reqParam) {
         return new ResponseEntity<>(searchService.getKeywordSearch(reqParam), HttpStatus.OK);
     }
 
