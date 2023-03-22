@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -15,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -27,6 +29,16 @@ class SearchServiceTest {
     @Autowired
     private TopTenRepository topTenRepository;
 
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Test
+    @DisplayName("redis 연결 테스트")
+    public void testRedisConnection() {
+        redisTemplate.opsForValue().set("test-key", "test-value");
+        String value = (String) redisTemplate.opsForValue().get("test-key");
+        assertThat(value).isEqualTo("test-value");
+    }
 
     @Test
     @DisplayName("TopTen save 테스트")

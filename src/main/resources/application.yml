@@ -15,6 +15,9 @@ spring:
       hibernate:
         format_sql: true
         show_sql: false
+  redis:
+    host: localhost
+    port: 6379
 
 #HOST
 kakaoSearchHost: http://dapi.kakao.com
@@ -25,5 +28,7 @@ restApiKey: dfc7bd188adc3b82d9794404f9991b35
 XNaverClientId: JLwJ_D31_2eHw4zKQHrq
 XNaverClientSecret: xvItGlvhyg
 
-#retryMax
-retryMax: 10
+#REDIS
+timeOut: 5 #minute
+kakaoCacheKey: kakao_search
+naverCacheKey: naver_search
